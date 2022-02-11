@@ -3,7 +3,7 @@
     "app": "http://localhost:3000",
     "ui": "http://localhost:3001"
   },
-  "rewrites": {
+  "rules": {
     "^http://.*/dashboard.*$": "ui",
     "^http://.*/_next.*$": "ui",
     ".*": "app"

@@ -1,13 +1,12 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
   pub hosts: IndexMap<String, String>,
-  pub rewrites: IndexMap<String, String>,
+  pub rules: IndexMap<String, String>,
 }
 
 pub fn parse() -> std::result::Result<Config, Box<dyn std::error::Error>> {

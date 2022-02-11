@@ -27,7 +27,7 @@ struct Proxy {
 fn format_status(status: hyper::StatusCode) -> ColoredString {
     if status.is_success() {
         return status.to_string().green().bold();
-    } else if (status.is_client_error() || status.is_server_error()) {
+    } else if status.is_client_error() || status.is_server_error() {
         return status.to_string().red().bold();
     } else if status.is_redirection() {
         return status.to_string().blue().bold();
@@ -56,7 +56,7 @@ async fn proxy_inner(
     // let host: &str = parts.uri.host().unwrap_or("defaulthost");
     let scheme: &str = parts.uri.scheme_str().unwrap_or("http");
 
-    for (uri_regex, host_name) in config.rewrites.into_iter() {
+    for (uri_regex, host_name) in config.rules.into_iter() {
         // println!("{} / {}", uri_regex, host_name);
         let r = Regex::new(&uri_regex).unwrap();
 
@@ -71,23 +71,13 @@ async fn proxy_inner(
             .parse::<hyper::Uri>()
             .unwrap();
 
-        // println!("destination_host={:?}", destination_host);
-        // println!(
-        //     "regex={:?} host={} path={} scheme={} uri={:?}",
-        //     r, request_host, path, scheme, parts.uri
-        // );
-        // println!("headers={:?}", headers);
-        // println!("Testing regex against {}: is_match={}", uri_str, is_match);
-        if (is_match) {
+        if is_match {
             let uri = hyper::Uri::builder()
                 .scheme(destination_host.scheme().unwrap().as_str())
                 .authority(destination_host.authority().unwrap().as_str())
                 .path_and_query(path_and_query)
                 .build()
                 .unwrap();
-
-            // println!("Requesting {:?}", uri);
-            // let uri = Uri::new();
 
             let outgoing_request = Request::builder()
                 .method(method)
@@ -98,7 +88,7 @@ async fn proxy_inner(
             return client
                 .request(outgoing_request)
                 .map_err(|e| {
-                    eprintln!("{:?}", e);
+                    eprintln!("Request error: {:?}", e.to_string().red());
                     e
                 })
                 .map_ok(|v| {
@@ -136,7 +126,7 @@ impl Proxy {
         });
 
         let make_svc = make_service_fn(move |socket: &AddrStream| {
-            let remote_addr = socket.remote_addr();
+            let _remote_addr = socket.remote_addr();
             let client = client.clone();
             let config = parsed_config.clone();
             // println!("Handling connection for IP: {}", &remote_addr);
@@ -151,7 +141,7 @@ impl Proxy {
         let server = Server::bind(&addr).serve(make_svc);
 
         if let Err(e) = server.await {
-            eprintln!("server error: {}", e);
+            eprintln!("Server error: {}", e.to_string().red());
         }
         Ok(())
     }
