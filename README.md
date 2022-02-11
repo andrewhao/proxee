@@ -32,12 +32,12 @@ Your config would be:
 ```json
 {
   "hosts": {
-    "main": "http://localhost:3000",
-    "blog": "http://localhost:3001",
+    "app": "http://localhost:3000",
+    "ui": "http://localhost:3001"
   },
   "rewrites": {
-    "^/blog/.*$": "blog",
-    "^.*$": "main"
+    "^http://ui.*$": "ui"
+    "^http://.*$": "app",
   }
 }
 ```
