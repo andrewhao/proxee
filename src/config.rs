@@ -1,18 +1,18 @@
-struct Config {
-    config_filename: String,
-    hosts: [String],
-    routes: [Routing]
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
+use std::fs;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Config {
+  pub hosts: HashMap<String, String>,
+  pub rewrites: HashMap<String, String>,
 }
 
-struct Routing {
-    path_matcher: String,
-    destination_host: String,
-}
-
-pub impl Config {
-    pub fn parse(config_filename = ".proxee.json") -> Self {
-        Config {
-            config_filename
-        }
-    }
+pub fn parse() -> std::result::Result<Config, Box<dyn std::error::Error>> {
+  // Open file
+  let cwd = env::current_dir()?;
+  let config_filename = ".proxee.json";
+  let contents = fs::read_to_string(cwd.join(config_filename))?;
+  Ok(serde_json::from_str(contents.as_str())?)
 }

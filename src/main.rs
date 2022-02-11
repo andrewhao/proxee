@@ -1,10 +1,14 @@
 use clap::Parser;
+use futures::future::TryFutureExt;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::Client;
 use hyper::{Body, Request, Response, Server};
+use regex::Regex;
 use std::convert::Infallible;
 use std::result::Result;
+
+mod config;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -21,20 +25,68 @@ struct Proxy {
 
 async fn proxy_inner(
     req: Request<Body>,
+    config: config::Config,
     client: Client<hyper::client::HttpConnector>,
 ) -> Result<Response<Body>, hyper::Error> {
     // Await the response...
 
-    let (parts, body) = req.into_parts();
-    let path: String = parts.uri.path().parse::<String>().unwrap_or_default();
-    let host: &str = parts.uri.host().unwrap();
-    let scheme: &str = parts.uri.scheme_str().unwrap();
+    let (parts, _body) = req.into_parts();
+    let path: String = parts
+        .uri
+        .path()
+        .parse::<String>()
+        .unwrap_or(String::from("/"));
+    // let authority: &str = parts.uri.authority().unwrap().as_str();
+    let path_and_query = parts.uri.path_and_query().unwrap().as_str();
     let headers = parts.headers;
+    let request_host: &str = headers.get("host").map_or("none", |h| h.to_str().unwrap());
+    // let host: &str = parts.uri.host().unwrap_or("defaulthost");
+    let scheme: &str = parts.uri.scheme_str().unwrap_or("http");
 
-    // let uri = ("https://www.wejoinin.com/" + req.uri().path()).parse?;
-    let uri = "http://localhost:3000".parse().unwrap();
-    client.get(uri).await
-    // Ok(Response::builder().status(200).body(Body::empty()).unwrap())
+    for (uri_regex, host_name) in config.rewrites.into_iter() {
+        println!("{} / {}", uri_regex, host_name);
+        let r = Regex::new(&uri_regex).unwrap();
+
+        let uri_str = [scheme, "://", request_host, path_and_query].join("");
+
+        let is_match = r.is_match(&uri_str.as_str());
+
+        let destination_host = config
+            .hosts
+            .get(&host_name)
+            .unwrap()
+            .parse::<hyper::Uri>()
+            .unwrap();
+
+        println!("destination_host={:?}", destination_host);
+        println!(
+            "regex={:?} host={} path={} scheme={} uri={:?}",
+            r, request_host, path, scheme, parts.uri
+        );
+        println!("headers={:?}", headers);
+        println!("Testing regex against {}: is_match={}", uri_str, is_match);
+        if (is_match) {
+            let uri = hyper::Uri::builder()
+                .scheme(destination_host.scheme().unwrap().as_str())
+                .authority(destination_host.authority().unwrap().as_str())
+                .path_and_query(path_and_query)
+                .build()
+                .unwrap();
+
+            println!("Requesting {:?}", uri);
+            // let uri = Uri::new();
+            return client
+                .get(uri)
+                .map_err(|e| {
+                    eprintln!("{:?}", e);
+                    e
+                })
+                .await;
+        }
+    }
+    Ok(hyper::Response::new(Body::from(
+        "proxee error: No matching rule found.",
+    )))
 }
 
 impl Proxy {
@@ -48,14 +100,21 @@ impl Proxy {
         println!("Running proxy on: {}", &addr);
         let client = Client::new();
 
+        let parsed_config = config::parse().unwrap_or_else({
+            |e| {
+                panic!("Error parsing configuration: {}", e);
+            }
+        });
+
         let make_svc = make_service_fn(move |socket: &AddrStream| {
             let remote_addr = socket.remote_addr();
             let client = client.clone();
+            let config = parsed_config.clone();
             println!("Handling connection for IP: {}", &remote_addr);
 
             async move {
                 Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {
-                    proxy_inner(req, client.clone())
+                    proxy_inner(req, config.clone(), client.clone())
                 }))
             }
         });
