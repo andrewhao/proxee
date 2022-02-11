@@ -1,4 +1,5 @@
 use clap::Parser;
+use colored::*;
 use futures::future::TryFutureExt;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
@@ -23,6 +24,17 @@ struct Proxy {
     port: u16,
 }
 
+fn format_status(status: hyper::StatusCode) -> ColoredString {
+    if status.is_success() {
+        return status.to_string().green().bold();
+    } else if (status.is_client_error() || status.is_server_error()) {
+        return status.to_string().red().bold();
+    } else if status.is_redirection() {
+        return status.to_string().blue().bold();
+    }
+    return status.to_string().yellow().bold();
+}
+
 async fn proxy_inner(
     req: Request<Body>,
     config: config::Config,
@@ -30,12 +42,13 @@ async fn proxy_inner(
 ) -> Result<Response<Body>, hyper::Error> {
     // Await the response...
 
-    let (parts, _body) = req.into_parts();
+    let (parts, body) = req.into_parts();
     let path: String = parts
         .uri
         .path()
         .parse::<String>()
         .unwrap_or(String::from("/"));
+    let method = parts.method;
     // let authority: &str = parts.uri.authority().unwrap().as_str();
     let path_and_query = parts.uri.path_and_query().unwrap().as_str();
     let headers = parts.headers;
@@ -44,7 +57,7 @@ async fn proxy_inner(
     let scheme: &str = parts.uri.scheme_str().unwrap_or("http");
 
     for (uri_regex, host_name) in config.rewrites.into_iter() {
-        println!("{} / {}", uri_regex, host_name);
+        // println!("{} / {}", uri_regex, host_name);
         let r = Regex::new(&uri_regex).unwrap();
 
         let uri_str = [scheme, "://", request_host, path_and_query].join("");
@@ -58,13 +71,13 @@ async fn proxy_inner(
             .parse::<hyper::Uri>()
             .unwrap();
 
-        println!("destination_host={:?}", destination_host);
-        println!(
-            "regex={:?} host={} path={} scheme={} uri={:?}",
-            r, request_host, path, scheme, parts.uri
-        );
-        println!("headers={:?}", headers);
-        println!("Testing regex against {}: is_match={}", uri_str, is_match);
+        // println!("destination_host={:?}", destination_host);
+        // println!(
+        //     "regex={:?} host={} path={} scheme={} uri={:?}",
+        //     r, request_host, path, scheme, parts.uri
+        // );
+        // println!("headers={:?}", headers);
+        // println!("Testing regex against {}: is_match={}", uri_str, is_match);
         if (is_match) {
             let uri = hyper::Uri::builder()
                 .scheme(destination_host.scheme().unwrap().as_str())
@@ -73,13 +86,29 @@ async fn proxy_inner(
                 .build()
                 .unwrap();
 
-            println!("Requesting {:?}", uri);
+            // println!("Requesting {:?}", uri);
             // let uri = Uri::new();
+
+            let outgoing_request = Request::builder()
+                .method(method)
+                .uri(uri.clone())
+                .body(body)
+                .unwrap();
+
             return client
-                .get(uri)
+                .request(outgoing_request)
                 .map_err(|e| {
                     eprintln!("{:?}", e);
                     e
+                })
+                .map_ok(|v| {
+                    println!(
+                        "| {} | {} => {} |",
+                        format_status(v.status()),
+                        uri_str.clone().to_string().yellow(),
+                        uri.clone().to_string().green()
+                    );
+                    v
                 })
                 .await;
         }
@@ -110,7 +139,7 @@ impl Proxy {
             let remote_addr = socket.remote_addr();
             let client = client.clone();
             let config = parsed_config.clone();
-            println!("Handling connection for IP: {}", &remote_addr);
+            // println!("Handling connection for IP: {}", &remote_addr);
 
             async move {
                 Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {

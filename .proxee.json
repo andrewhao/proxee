@@ -3,14 +3,9 @@
     "app": "http://localhost:3000",
     "ui": "http://localhost:3001"
   },
-  "rules": [
-    {
-      "match": "^http://app.*$",
-      "destination": "app"
-    },
-    {
-      "match": "^http://ui.*$",
-      "destination": "ui"
-    }
-  ]
+  "rewrites": {
+    "^http://.*/dashboard.*$": "ui",
+    "^http://.*/_next.*$": "ui",
+    ".*": "app"
+  }
 }
