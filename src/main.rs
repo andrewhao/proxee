@@ -119,11 +119,13 @@ impl Proxy {
         println!("Running proxy on: {}", &addr);
         let client = Client::new();
 
-        let parsed_config = config::parse().unwrap_or_else({
-            |e| {
-                panic!("Error parsing configuration: {}", e);
-            }
-        });
+        let parsed_config = match config::parse() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Parsing configuration error: {}", e.to_string().red());
+                return Ok(())
+            },
+        };
 
         let make_svc = make_service_fn(move |socket: &AddrStream| {
             let _remote_addr = socket.remote_addr();
