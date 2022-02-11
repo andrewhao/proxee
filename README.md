@@ -1,8 +1,10 @@
 # proxee
 
-A zero-config CLI reverse proxy.
+A zero-config CLI reverse proxy for local SPA and backend development
 
-Primarily for solving the use case where you're locally developing two apps running on two separate ports and you want to merge them on the same host.
+<img width="962" alt="image" src="https://user-images.githubusercontent.com/222583/153681875-b6ede0b7-ab4e-464d-ab25-f5653c7e2385.png">
+
+Local SPA development is hard, especially if you need to proxy API requests to a cloud- or locally-hosted API backend. `proxee` makes this easier with a CLI-based reverse proxy server so you can locally develop against multiple local- or cloud-based services.
 
 ### Usage
 
