@@ -79,22 +79,27 @@ async fn proxy_inner(
                 .build()
                 .unwrap();
 
-            let outgoing_request = Request::builder()
-                .method(method)
-                .uri(uri.clone())
-                .body(body)
-                .unwrap();
+            let outgoing_headers = headers.clone();
+
+            let mut outgoing_request = Request::builder().method(method.clone()).uri(uri.clone());
+
+            for (k, v) in outgoing_headers {
+                outgoing_request = outgoing_request.header(k.unwrap(), v)
+            }
+
+            let outgoing_request_unwrapped = outgoing_request.body(body).unwrap();
 
             return client
-                .request(outgoing_request)
+                .request(outgoing_request_unwrapped)
                 .map_err(|e| {
                     eprintln!("Request error: {:?}", e.to_string().red());
                     e
                 })
                 .map_ok(|v| {
                     println!(
-                        "| {} | {} => {} |",
+                        "| {} | {} {} => {} |",
                         format_status(v.status()),
+                        method.clone().to_string().magenta().bold(),
                         uri_str.clone().to_string().yellow(),
                         uri.clone().to_string().green()
                     );
@@ -123,8 +128,8 @@ impl Proxy {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Parsing configuration error: {}", e.to_string().red());
-                return Ok(())
-            },
+                return Ok(());
+            }
         };
 
         let make_svc = make_service_fn(move |socket: &AddrStream| {
