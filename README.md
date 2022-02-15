@@ -6,13 +6,20 @@ A zero-config CLI reverse proxy for local SPA and backend development
 
 Local SPA development is hard, especially if you need to proxy API requests to a cloud- or locally-hosted API backend. `proxee` makes this easier with a CLI-based reverse proxy server so you can locally develop against multiple local- or cloud-based services.
 
-### Usage
+## Install
 
-    $ proxee start
+Via Homebrew (macOS, Linux, WSL):
 
-### Config
+    $ brew tap andrewhao/proxee
+    $ brew install proxee
 
-Set up a `.proxee.json` file in the root directory where you want to run the proxy
+## Usage
+
+    $ proxee start [--port=PORT]
+
+## Routing Configuration
+
+Set up a `.proxee.json` file in the root directory where you invoke the `proxee` command with routing configurations. The configuration follows the form:
 
 ```json
 {
