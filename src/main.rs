@@ -9,16 +9,19 @@ use regex::Regex;
 use std::convert::Infallible;
 use std::result::Result;
 
+mod certs;
 mod config;
 
 #[derive(Subcommand)]
 enum Action {
     /// Starts the server
-   Start {
-    /// Port number to start proxy on
-    #[clap(short, long, default_value_t = 8080)]
-    port: u16,
-   },
+    Start {
+        /// Port number to start proxy on
+        #[clap(short, long, default_value_t = 8080)]
+        port: u16,
+    },
+    /// Self-signs certificates and performs other pre-setup configs
+    Init {},
 }
 
 /// Simple program to greet a person
@@ -52,7 +55,7 @@ async fn proxy_inner(
     // Await the response...
 
     let (parts, body) = req.into_parts();
-    let path: String = parts
+    let _path: String = parts
         .uri
         .path()
         .parse::<String>()
@@ -170,6 +173,10 @@ async fn main() {
         Action::Start { port } => {
             let s = Proxy::new(port).run().await;
             s.unwrap()
+        }
+        Action::Init {} => {
+            let c = config::parse().unwrap();
+            let _generated = certs::generate_and_save(c.certificate_hostnames).unwrap();
         }
     }
 }

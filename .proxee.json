@@ -1,4 +1,5 @@
 {
+  "certificate_hostnames": ["localhost"],
   "hosts": {
     "app": "http://localhost:3000",
     "ui": "http://localhost:3001"
