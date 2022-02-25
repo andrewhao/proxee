@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use colored::*;
 use futures::future::TryFutureExt;
 use hyper::server::conn::AddrStream;
@@ -11,13 +11,22 @@ use std::result::Result;
 
 mod config;
 
-/// Simple program to greet a person
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
+#[derive(Subcommand)]
+enum Action {
+    /// Starts the server
+   Start {
     /// Port number to start proxy on
     #[clap(short, long, default_value_t = 8080)]
     port: u16,
+   },
+}
+
+/// Simple program to greet a person
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(subcommand)]
+    action: Action,
 }
 
 struct Proxy {
@@ -157,6 +166,10 @@ impl Proxy {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-    let s = Proxy::new(args.port).run().await;
-    s.unwrap()
+    match args.action {
+        Action::Start { port } => {
+            let s = Proxy::new(port).run().await;
+            s.unwrap()
+        }
+    }
 }
