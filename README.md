@@ -44,7 +44,7 @@ Your config would be:
     "main": "http://localhost:3000",
     "blog": "http://localhost:3001"
   },
-  "rewrites": {
+  "rules": {
     "^http://blog.mydomain.test/*$": "blog" // Route ui.mydomain.com to locally-running `ui` microservice
     "^http://www.mydomain.test.*$": "main", // Fallback to `app` microservice
   }
@@ -63,7 +63,7 @@ Your config would be:
     "main": "http://localhost:3000",
     "blog": "http://localhost:3001"
   },
-  "rewrites": {
+  "rules": {
     "^http://www.mydomain.test/blog.*$": "blog" // Rewrite all requests to the /blog directory to "blog" service
     "^http://.*$": "main", // Fallback to `main` microservice
   }
@@ -76,10 +76,11 @@ If you use special frameworks like Next.js, you will need to also redirect speci
 
 ```json
 {
-
-  "rewrites": {
+  "hosts": { ... },
+  "rules": {
     "...": "...",
     "^http://www.mydomain.test/_next.*$": "blog", // Special frameworks like Next.js also have reserved paths for fetching static data. You may want to require this if you need to route asset requests to your SPA.
     "...": "...",
   }
 }
+```
