@@ -1,13 +1,16 @@
 use clap::{Parser, Subcommand};
 use colored::*;
 use futures::future::TryFutureExt;
-use hyper::server::conn::AddrStream;
+// use futures::StreamExt;
+use hyper::server::conn::AddrIncoming;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::Client;
-use hyper::{Body, Request, Response, Server};
+use hyper::{Body, Client, Request, Response, Server};
 use regex::Regex;
 use std::convert::Infallible;
+// use std::future::ready;
 use std::result::Result;
+
+use tls_listener::TlsListener;
 
 mod certs;
 mod config;
@@ -144,8 +147,7 @@ impl Proxy {
             }
         };
 
-        let make_svc = make_service_fn(move |socket: &AddrStream| {
-            let _remote_addr = socket.remote_addr();
+        let make_svc = make_service_fn(move |_| {
             let client = client.clone();
             let config = parsed_config.clone();
             // println!("Handling connection for IP: {}", &remote_addr);
@@ -157,7 +159,16 @@ impl Proxy {
             }
         });
 
-        let server = Server::bind(&addr).serve(make_svc);
+        let incoming = TlsListener::new(certs::tls_acceptor(), AddrIncoming::bind(&addr)?); // .filter(|conn| {
+                                                                                            //     if let Err(e) = conn {
+                                                                                            //         eprintln!("Server error: {}", e.to_string().red());
+                                                                                            //         ready(false);
+                                                                                            //     } else {
+                                                                                            //         ready(true);
+                                                                                            //     }
+                                                                                            // });
+
+        let server = Server::builder(incoming).serve(make_svc);
 
         if let Err(e) = server.await {
             eprintln!("Server error: {}", e.to_string().red());
