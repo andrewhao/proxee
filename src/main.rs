@@ -23,8 +23,6 @@ enum Action {
         #[clap(short, long, default_value_t = 8080)]
         port: u16,
     },
-    /// Self-signs certificates and performs other pre-setup configs
-    Init {},
 }
 
 /// Simple program to greet a person
@@ -107,7 +105,7 @@ async fn proxy_inner(
             return client
                 .request(outgoing_request_unwrapped)
                 .map_err(|e| {
-                    eprintln!("Request error: {:?}", e.to_string().red());
+                    eprintln!("Request error: {}", e.to_string().red());
                     e
                 })
                 .map_ok(|v| {
@@ -147,10 +145,9 @@ impl Proxy {
             }
         };
 
-        let make_svc = make_service_fn(move |_| {
+        let make_svc = make_service_fn(|_| {
             let client = client.clone();
             let config = parsed_config.clone();
-            // println!("Handling connection for IP: {}", &remote_addr);
 
             async move {
                 Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {
@@ -159,15 +156,10 @@ impl Proxy {
             }
         });
 
-        let incoming = TlsListener::new(certs::tls_acceptor(), AddrIncoming::bind(&addr)?); // .filter(|conn| {
-                                                                                            //     if let Err(e) = conn {
-                                                                                            //         eprintln!("Server error: {}", e.to_string().red());
-                                                                                            //         ready(false);
-                                                                                            //     } else {
-                                                                                            //         ready(true);
-                                                                                            //     }
-                                                                                            // });
+        let config = parsed_config.clone();
 
+
+        let incoming = TlsListener::new(certs::tls_acceptor(config.key_path, config.certificate_path), AddrIncoming::bind(&addr)?);
         let server = Server::builder(incoming).serve(make_svc);
 
         if let Err(e) = server.await {
@@ -184,10 +176,6 @@ async fn main() {
         Action::Start { port } => {
             let s = Proxy::new(port).run().await;
             s.unwrap()
-        }
-        Action::Init {} => {
-            let c = config::parse().unwrap();
-            let _generated = certs::generate_and_save(c.certificate_hostnames).unwrap();
         }
     }
 }

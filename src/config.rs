@@ -5,7 +5,8 @@ use std::fs;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
-  pub certificate_hostnames: Vec<String>,
+  pub certificate_path: String,
+  pub key_path: String,
   pub hosts: IndexMap<String, String>,
   pub rules: IndexMap<String, String>,
 }
