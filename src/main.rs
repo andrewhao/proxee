@@ -1,24 +1,28 @@
 use clap::{Parser, Subcommand};
 use colored::*;
 use futures::future::TryFutureExt;
-use hyper::server::conn::AddrStream;
+// use futures::StreamExt;
+use hyper::server::conn::AddrIncoming;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::Client;
-use hyper::{Body, Request, Response, Server};
+use hyper::{Body, Client, Request, Response, Server};
 use regex::Regex;
 use std::convert::Infallible;
+// use std::future::ready;
 use std::result::Result;
 
+use tls_listener::TlsListener;
+
+mod certs;
 mod config;
 
 #[derive(Subcommand)]
 enum Action {
     /// Starts the server
-   Start {
-    /// Port number to start proxy on
-    #[clap(short, long, default_value_t = 8080)]
-    port: u16,
-   },
+    Start {
+        /// Port number to start proxy on
+        #[clap(short, long, default_value_t = 8080)]
+        port: u16,
+    },
 }
 
 /// Simple program to greet a person
@@ -52,7 +56,7 @@ async fn proxy_inner(
     // Await the response...
 
     let (parts, body) = req.into_parts();
-    let path: String = parts
+    let _path: String = parts
         .uri
         .path()
         .parse::<String>()
@@ -101,7 +105,7 @@ async fn proxy_inner(
             return client
                 .request(outgoing_request_unwrapped)
                 .map_err(|e| {
-                    eprintln!("Request error: {:?}", e.to_string().red());
+                    eprintln!("Request error: {}", e.to_string().red());
                     e
                 })
                 .map_ok(|v| {
@@ -141,11 +145,9 @@ impl Proxy {
             }
         };
 
-        let make_svc = make_service_fn(move |socket: &AddrStream| {
-            let _remote_addr = socket.remote_addr();
+        let make_svc = make_service_fn(|_| {
             let client = client.clone();
             let config = parsed_config.clone();
-            // println!("Handling connection for IP: {}", &remote_addr);
 
             async move {
                 Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {
@@ -154,7 +156,11 @@ impl Proxy {
             }
         });
 
-        let server = Server::bind(&addr).serve(make_svc);
+        let config = parsed_config.clone();
+
+
+        let incoming = TlsListener::new(certs::tls_acceptor(config.key_path, config.certificate_path), AddrIncoming::bind(&addr)?);
+        let server = Server::builder(incoming).serve(make_svc);
 
         if let Err(e) = server.await {
             eprintln!("Server error: {}", e.to_string().red());

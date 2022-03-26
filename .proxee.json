@@ -1,4 +1,6 @@
 {
+  "certificate_path": "localhost.pem",
+  "key_path": "localhost-key.pem",
   "hosts": {
     "app": "http://localhost:3000",
     "ui": "http://localhost:3001"
