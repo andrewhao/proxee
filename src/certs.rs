@@ -14,7 +14,6 @@ pub fn tls_acceptor(key_path: String, cert_path: String) -> tokio_rustls::TlsAcc
     let mut cert_reader = BufReader::new(cert_file);
     let parsed_certs = certs(&mut cert_reader).unwrap();
     let cert_vec = parsed_certs.first().unwrap();
-    println!("parsed cert: {:?}", cert_vec);
 
     let key = PrivateKey(key_vec.clone());
     let cert = Certificate(cert_vec.clone());
